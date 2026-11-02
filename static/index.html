@@ -169,7 +169,7 @@ function actions(id) {
 }
 
 $("enter").onclick = enter;
-$("pw").onkeydown = e => { if (e.key === "Enter") enter(); };
+$("pw").onkeydown = e => { if (e.key === "Enter" && !e.isComposing) enter(); };  // 한글 입력 중 Enter 는 마지막 글자가 빠질 수 있다
 $("send").onclick = send;
 $("ask").onkeydown = e => { if (e.key === "Enter" && !e.isComposing) send(); };
 if (auth) api("/api/sources").then(r => showMain(r.sources)).catch(() => { localStorage.removeItem("butler-auth"); auth = null; });
