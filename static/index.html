@@ -106,11 +106,11 @@ function showMain(sources) {
   $("loginView").hidden = true; $("mainView").hidden = false;
   $("who").textContent = `${auth.nick} 님 입장 중`;
   $("chips").innerHTML = "";
-  sources.forEach(name => {
+  sources.forEach(({id, label}) => {
     const b = document.createElement("button");
-    b.className = "chip"; b.textContent = name.replace(/^가상_/, "").replace(/_/g, " ");
-    if (name.includes("2025")) { b.classList.add("on"); picked.add(name); }
-    b.onclick = () => { b.classList.toggle("on"); b.classList.contains("on") ? picked.add(name) : picked.delete(name); };
+    b.className = "chip"; b.textContent = label;
+    if (id.includes("2025")) { b.classList.add("on"); picked.add(id); }
+    b.onclick = () => { b.classList.toggle("on"); b.classList.contains("on") ? picked.add(id) : picked.delete(id); };
     $("chips").appendChild(b);
   });
   $("suggest").innerHTML = "";
@@ -141,7 +141,7 @@ async function send() {
     bubble.appendChild(g);
     if (out.sources.length) {
       const s = document.createElement("div"); s.className = "src";
-      s.textContent = "참고: " + [...new Set(out.sources.map(x => x.source.replace(/^가상_/, "")))].join(", ");
+      s.textContent = "참고: " + [...new Set(out.sources.map(x => x.source))].join(", ");
       bubble.appendChild(s);
     }
     bubble.appendChild(actions(out.id));

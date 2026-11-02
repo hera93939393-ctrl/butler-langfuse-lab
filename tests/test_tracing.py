@@ -44,7 +44,7 @@ def test_write_turn_steps_and_attributes(monkeypatch):
 
     monkeypatch.setattr(tracing, "_propagate", propagate)
     monkeypatch.setattr(tracing, "start_trace", start_trace)
-    pipeline.run("2025년 점검 실적 찾아서 넣어줘", ["가상_2025_사업성과", "가상_2024_사업성과"], "민수", FakeLLM(), load_settings())
+    pipeline.run("2025년 점검 실적 찾아서 넣어줘", ["mock_2025_results", "mock_2024_results"], "민수", FakeLLM(), load_settings())
 
     turn = traces[-1]
     assert turn.fields["name"] == "write-turn" and turn.ended

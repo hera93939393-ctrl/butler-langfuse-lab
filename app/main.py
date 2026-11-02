@@ -100,7 +100,7 @@ def version():
 
 @app.get("/api/sources")
 def sources(nickname: str = Depends(member)):
-    return {"sources": steps.list_sources()}
+    return {"sources": [{"id": s, "label": steps.label(s)} for s in steps.list_sources()]}
 
 
 @app.post("/api/write")
@@ -117,7 +117,7 @@ def write(req: WriteRequest, nickname: str = Depends(member), model=Depends(get_
             results.popitem(last=False)
     log("INFO", "참고 작성", user=nickname, mode=out["mode"], chunks=len(out["chunks"]), guard_ok=out["guard"]["ok"])
     return {"id": result_id, "text": out["text"], "mode": out["mode"], "guard": out["guard"],
-            "sources": [{"source": c["source"], "header": c["header"]} for c in out["chunks"]]}
+            "sources": [{"source": steps.label(c["source"]), "header": c["header"]} for c in out["chunks"]]}
 
 
 def my_result(nickname, result_id):

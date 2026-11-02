@@ -32,7 +32,7 @@ def run(request_text, source_names, nickname, llm, settings):
 
         # ③ 쓰기
         rules = ANSWER_RULES if req["mode"] == "question" else WRITE_RULES
-        listed = "\n".join(f"- [{c['source']} · {c['header']}] {c['line']}" for c in chunks) or "(찾은 자료 없음)"
+        listed = "\n".join(f"- [{steps.label(c['source'])} · {c['header']}] {c['line']}" for c in chunks) or "(찾은 자료 없음)"
         user = f"[요청]\n{request_text}\n\n[자료]\n{listed}"
         step = turn.start_observation(name="write", as_type="generation", model=llm.model,
                                       input=[{"role": "system", "content": rules}, {"role": "user", "content": user}])

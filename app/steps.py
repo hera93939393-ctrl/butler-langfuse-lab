@@ -15,9 +15,18 @@ PARTICLES = re.compile(r"(은|는|이|가|을|를|의|에|에서|으로|로|과|
 NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 
 
+# 파일 이름은 영문으로 둔다(한글 파일 이름이 든 이미지를 Cloud Run 이 불러오지 못했다). 화면에는 한글 이름을 보인다.
+LABELS = {"mock_2025_results": "2025 사업성과", "mock_2024_results": "2024 사업성과",
+          "mock_delegation_rules": "전결규정"}
+
+
 def list_sources():
     """목업 폴더의 .txt 만. 다른 곳의 파일은 읽지 않는다."""
     return sorted(p.stem for p in MOCK_DIR.glob("*.txt"))
+
+
+def label(name):
+    return LABELS.get(name, name)
 
 
 def read_source(name):

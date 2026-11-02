@@ -23,7 +23,7 @@ def test_team_password_required():
     assert client.get("/api/sources").status_code == 401
     assert client.get("/api/sources", headers={**ME, "X-Team-Password": "wrong"}).status_code == 401
     assert client.get("/api/sources", headers={**ME, "X-Nickname": "!!"}).status_code == 400
-    assert "가상_2025_사업성과" in client.get("/api/sources", headers=ME).json()["sources"]
+    assert {"id": "mock_2025_results", "label": "2025 사업성과"} in client.get("/api/sources", headers=ME).json()["sources"]
 
 
 def test_only_mock_files_can_be_read():
@@ -42,7 +42,7 @@ def test_read_request_modes_and_years():
 
 
 def test_find_sources_puts_matching_year_first_but_keeps_trap():
-    chunks = steps.find_sources(steps.read_request("2025년 점검 실적 찾아서 넣어줘"), ["가상_2025_사업성과", "가상_2024_사업성과"])
+    chunks = steps.find_sources(steps.read_request("2025년 점검 실적 찾아서 넣어줘"), ["mock_2025_results", "mock_2024_results"])
     assert chunks[0]["year"] == "2025"
     assert any(c["year"] == "2024" for c in chunks)  # 함정: 낱말이 같은 2024 줄도 함께 뽑힌다
 
@@ -55,14 +55,14 @@ def test_number_guard_catches_numbers_not_in_sources():
 
 
 def test_write_turn_returns_text_and_guard():
-    out = write("2025년 점검 실적 찾아서 넣어줘", ["가상_2025_사업성과"]).json()
+    out = write("2025년 점검 실적 찾아서 넣어줘", ["mock_2025_results"]).json()
     assert out["text"].startswith("□") and out["guard"]["ok"] and out["id"]
 
 
 def test_feedback_only_on_my_result(monkeypatch):
     sent = []
     monkeypatch.setattr(tracing, "score", lambda trace_id, name, value, env, comment=None: sent.append((name, value, comment)) or True)
-    rid = write("2025년 점검 실적", ["가상_2025_사업성과"]).json()["id"]
+    rid = write("2025년 점검 실적", ["mock_2025_results"]).json()["id"]
     assert client.post("/api/feedback", json={"result_id": rid, "value": "down"}, headers=ME).json() == {"ok": True}
     assert client.post("/api/report", json={"result_id": rid, "reason": "2024 숫자"}, headers=ME).json() == {"ok": True}
     assert sent == [("user-feedback", 0, None), ("report", 1, "2024 숫자")]
