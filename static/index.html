@@ -43,6 +43,11 @@ h1,.jua{font-family:"Jua",sans-serif;font-weight:400}
 .err{color:#A32D2D;font-size:14px;min-height:20px;margin-top:8px}
 .note{font-size:13px;color:var(--ink-2);margin-top:10px}
 .typing{color:var(--ink-3)}
+.src-item{display:inline-flex;align-items:center;gap:2px}
+.peek{border:0;background:none;color:var(--ink-2);font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:2px 4px}
+.viewer{margin-top:10px;border:1.5px dashed var(--ink-3);border-radius:12px;background:var(--paper);padding:10px 12px}
+.viewer-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.viewer pre{margin:0;white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.7}
 </style>
 </head>
 <body>
@@ -71,6 +76,10 @@ h1,.jua{font-family:"Jua",sans-serif;font-weight:400}
   <div class="card">
     <div class="label">① 참고할 자료</div>
     <div class="chips" id="chips"></div>
+    <div class="viewer" id="viewer" hidden>
+      <div class="viewer-top"><span class="jua" id="viewerTitle"></span><button class="act" id="viewerClose">닫기</button></div>
+      <pre id="viewerText"></pre>
+    </div>
   </div>
   <div class="thread" id="thread"></div>
   <div class="suggest" id="suggest"></div>
@@ -111,10 +120,22 @@ function showMain(sources) {
     b.className = "chip"; b.textContent = label;
     if (id.includes("2025")) { b.classList.add("on"); picked.add(id); }
     b.onclick = () => { b.classList.toggle("on"); b.classList.contains("on") ? picked.add(id) : picked.delete(id); };
-    $("chips").appendChild(b);
+    const peek = document.createElement("button");
+    peek.className = "peek"; peek.textContent = "보기"; peek.title = `${label} 전문 보기`;
+    peek.onclick = () => showSource(id);
+    const item = document.createElement("span"); item.className = "src-item";
+    item.append(b, peek);
+    $("chips").appendChild(item);
   });
   $("suggest").innerHTML = "";
   SUGGEST.forEach(s => { const b = document.createElement("button"); b.textContent = s; b.onclick = () => { $("ask").value = s; send(); }; $("suggest").appendChild(b); });
+}
+
+async function showSource(id) {
+  const s = await api(`/api/sources/${encodeURIComponent(id)}`);
+  $("viewerTitle").textContent = `${s.label} (가상 자료 전문)`;
+  $("viewerText").textContent = s.text;
+  $("viewer").hidden = false;
 }
 
 function row(cls, html) {
@@ -169,6 +190,7 @@ function actions(id) {
 }
 
 $("enter").onclick = enter;
+$("viewerClose").onclick = () => { $("viewer").hidden = true; };
 $("pw").onkeydown = e => { if (e.key === "Enter" && !e.isComposing) enter(); };  // 한글 입력 중 Enter 는 마지막 글자가 빠질 수 있다
 $("send").onclick = send;
 $("ask").onkeydown = e => { if (e.key === "Enter" && !e.isComposing) send(); };

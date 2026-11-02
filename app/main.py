@@ -105,6 +105,14 @@ def sources(nickname: str = Depends(member)):
     return {"sources": [{"id": s, "label": steps.label(s)} for s in steps.list_sources()]}
 
 
+@app.get("/api/sources/{name}")
+def source_text(name: str, nickname: str = Depends(member)):
+    """자료 전문 보기(팀원이 답의 숫자를 원문과 맞춰 보게). 목업 폴더의 파일만."""
+    if name not in steps.list_sources():
+        raise HTTPException(404, "없는 자료입니다.")
+    return {"id": name, "label": steps.label(name), "text": steps.read_source(name)}
+
+
 @app.post("/api/write")
 def write(req: WriteRequest, nickname: str = Depends(member), model=Depends(get_llm)):
     unknown = [s for s in req.sources if s not in steps.list_sources()]

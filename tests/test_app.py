@@ -76,3 +76,10 @@ def test_korean_team_password(monkeypatch):
     assert client.get("/api/sources", headers=ok).status_code == 200
     assert client.get("/api/sources", headers={**ok, "X-Team-Password": quote("한글집사12")}).status_code == 401
     assert client.get("/api/sources").status_code == 401
+
+
+def test_view_source_text():
+    r = client.get("/api/sources/mock_2024_results", headers=ME).json()
+    assert r["label"] == "2024 사업성과" and "38개소" in r["text"]
+    assert client.get("/api/sources/..%2F.env", headers=ME).status_code == 404
+    assert client.get("/api/sources/mock_2024_results").status_code == 401
