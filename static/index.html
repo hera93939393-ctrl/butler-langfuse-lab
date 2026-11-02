@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 한글집사 실습</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2C2C2A;--ink-2:#5F5E5A;--ink-3:#888780;--paper:#FFF6DC;--sun:#FAC775;--me:#CECBF6;--ok:#9FE1CB;--go:#5DCAA5;--good-bg:#EAF3DE;--good:#27500A;--warn-bg:#FAEEDA;--warn:#633806;--line:2px solid var(--ink)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Gowun Dodum",system-ui,sans-serif;font-size:16px}
+h1,.jua{font-family:"Jua",sans-serif;font-weight:400}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--sun);border:var(--line);border-radius:18px;padding:10px 16px}
+.brand{display:flex;align-items:center;gap:10px}.brand h1{font-size:22px;margin:0}.brand small{display:block;color:var(--warn);font-size:13px}
+.pill{background:#fff;border:1.5px solid var(--ink);border-radius:999px;padding:4px 12px;font-size:13px}
+.card{background:#fff;border:var(--line);border-radius:16px;padding:12px 14px;margin-top:12px}
+.label{font-family:"Jua",sans-serif;font-size:16px;margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px dashed var(--ink-3);background:#fff;color:var(--ink-2);border-radius:999px;padding:5px 12px;font:inherit;font-size:14px;cursor:pointer}
+.chip.on{border:1.5px solid var(--ink);background:var(--ok);color:var(--ink)}
+.thread{display:flex;flex-direction:column;gap:12px;margin-top:14px;min-height:120px}
+.row{display:flex;gap:8px;align-items:flex-start}.row.me{justify-content:flex-end}
+.bubble{border:var(--line);border-radius:16px;padding:10px 14px;max-width:85%;white-space:pre-wrap;line-height:1.7}
+.me .bubble{background:var(--me);border-radius:16px 16px 4px 16px}
+.them .bubble{background:#fff;border-radius:16px 16px 16px 4px}
+.guard{display:inline-block;margin-top:8px;font-size:13px;border-radius:8px;padding:4px 8px;white-space:normal}
+.guard.ok{background:var(--good-bg);border:1.5px solid #3B6D11;color:var(--good)}
+.guard.no{background:var(--warn-bg);border:1.5px solid #854F0B;color:var(--warn)}
+.src{font-size:12px;color:var(--ink-2);margin-top:6px;white-space:normal}
+.acts{display:flex;gap:6px;margin-top:8px}
+.act{border:1.5px solid var(--ink);background:var(--paper);border-radius:999px;padding:3px 12px;font:inherit;font-size:13px;cursor:pointer}
+.act.flag{border-color:var(--ink-3);color:var(--ink-2);background:#fff}.act:disabled{opacity:.55;cursor:default}
+.compose{display:flex;gap:8px;margin-top:14px}
+.compose input{flex:1;border:var(--line);border-radius:999px;padding:10px 16px;font:inherit;background:#fff}
+.go{border:var(--line);background:var(--go);border-radius:999px;padding:10px 18px;font-family:"Jua",sans-serif;font-size:16px;cursor:pointer}
+.go:disabled{opacity:.6;cursor:wait}
+.suggest{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.suggest button{border:1.5px solid var(--ink);background:#fff;border-radius:999px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer}
+.login{max-width:380px;margin:60px auto;text-align:center}
+.login input{width:100%;border:var(--line);border-radius:12px;padding:10px 12px;font:inherit;margin-top:8px;background:#fff}
+.err{color:#A32D2D;font-size:14px;min-height:20px;margin-top:8px}
+.note{font-size:13px;color:var(--ink-2);margin-top:10px}
+.typing{color:var(--ink-3)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="butler" viewBox="0 0 40 40"><circle cx="20" cy="21" r="16" fill="#fff" stroke="#2C2C2A" stroke-width="2"/><path d="M8 14 Q20 2 32 14 Z" fill="#2C2C2A"/><circle cx="14.5" cy="22" r="2" fill="#2C2C2A"/><circle cx="25.5" cy="22" r="2" fill="#2C2C2A"/><path d="M15 28 Q20 31 25 28" stroke="#2C2C2A" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="11" cy="26" r="2" fill="#F4C0D1"/><circle cx="29" cy="26" r="2" fill="#F4C0D1"/><path d="M16 37 L20 33 L24 37" fill="#D85A30" stroke="#2C2C2A" stroke-width="1.5"/></symbol>
+</defs></svg>
+
+<div class="wrap" id="loginView">
+  <div class="card login">
+    <svg width="72" height="72"><use href="#butler"/></svg>
+    <h1>AI 한글집사 실습</h1>
+    <p class="note">시험용 가짜 자료로 '자료 보고 쓰기'를 해 보는 곳이에요.<br>실제 업무 자료는 넣지 마세요.</p>
+    <input id="nick" placeholder="별명 (예: 민수)" maxlength="20">
+    <input id="pw" type="password" placeholder="팀 비밀번호">
+    <button class="go" style="width:100%;margin-top:12px" id="enter">입장하기</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<div class="wrap" id="mainView" hidden>
+  <div class="top">
+    <div class="brand"><svg width="40" height="40"><use href="#butler"/></svg>
+      <div><h1>한글집사 실습</h1><small>자료 보고 쓰기 · 시험용 가짜 자료</small></div></div>
+    <span class="pill" id="who"></span>
+  </div>
+  <div class="card">
+    <div class="label">① 참고할 자료</div>
+    <div class="chips" id="chips"></div>
+  </div>
+  <div class="thread" id="thread"></div>
+  <div class="suggest" id="suggest"></div>
+  <div class="compose">
+    <input id="ask" placeholder="무엇을 찾아서 넣어 드릴까요?" maxlength="300">
+    <button class="go" id="send">작성하기</button>
+  </div>
+  <p class="note">답 아래 좋아요 · 별로예요 · 신고를 눌러 주세요. 팀이 나중에 '별로예요'가 붙은 기록부터 같이 읽어 봐요.</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const SUGGEST = ["2025년 점검 실적 찾아서 넣어줘", "안전교실 참여 인원 정리해줘", "작년이랑 올해 예산 집행 비교해줘", "보행로 정비는 몇 곳이야?", "점검 결과 보고는 며칠 안에 해야 해?"];
+let auth = JSON.parse(localStorage.getItem("butler-auth") || "null");
+let picked = new Set();
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-Team-Password": auth?.pw || "", "X-Nickname": encodeURIComponent(auth?.nick || ""), ...(opts.headers || {})}});
+  if (!r.ok) { const e = await r.json().catch(() => ({})); throw Object.assign(new Error(e.detail || "요청이 실패했어요."), {status: r.status}); }
+  return r.json();
+}
+
+async function enter() {
+  auth = {nick: $("nick").value.trim(), pw: $("pw").value};
+  try {
+    const {sources} = await api("/api/sources");
+    localStorage.setItem("butler-auth", JSON.stringify(auth));
+    showMain(sources);
+  } catch (e) { $("loginErr").textContent = e.message; }
+}
+
+function showMain(sources) {
+  $("loginView").hidden = true; $("mainView").hidden = false;
+  $("who").textContent = `${auth.nick} 님 입장 중`;
+  $("chips").innerHTML = "";
+  sources.forEach(name => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = name.replace(/^가상_/, "").replace(/_/g, " ");
+    if (name.includes("2025")) { b.classList.add("on"); picked.add(name); }
+    b.onclick = () => { b.classList.toggle("on"); b.classList.contains("on") ? picked.add(name) : picked.delete(name); };
+    $("chips").appendChild(b);
+  });
+  $("suggest").innerHTML = "";
+  SUGGEST.forEach(s => { const b = document.createElement("button"); b.textContent = s; b.onclick = () => { $("ask").value = s; send(); }; $("suggest").appendChild(b); });
+}
+
+function row(cls, html) {
+  const r = document.createElement("div"); r.className = "row " + cls;
+  r.innerHTML = cls === "them" ? `<svg width="30" height="30" style="flex-shrink:0"><use href="#butler"/></svg><div class="bubble"></div>` : `<div class="bubble"></div>`;
+  $("thread").appendChild(r); r.scrollIntoView({block: "end"});
+  return r.querySelector(".bubble");
+}
+
+async function send() {
+  const text = $("ask").value.trim();
+  if (!text) return;
+  if (!picked.size) { alert("참고할 자료를 하나 이상 골라 주세요."); return; }
+  row("me").textContent = text; $("ask").value = "";
+  const bubble = row("them"); bubble.innerHTML = `<span class="typing">자료를 살펴보는 중이에요…</span>`;
+  $("send").disabled = true;
+  try {
+    const out = await api("/api/write", {method: "POST", body: JSON.stringify({request: text, sources: [...picked]})});
+    bubble.textContent = out.text;
+    const g = document.createElement("div");
+    g.className = "guard " + (out.guard.ok ? "ok" : "no");
+    g.textContent = out.guard.ok ? `수치 확인: 자료에 있는 숫자 ${out.guard.known.length}개, 없는 숫자 0개`
+                                 : `수치 확인: 자료에 없는 숫자 ${out.guard.unknown.join(", ")}`;
+    bubble.appendChild(g);
+    if (out.sources.length) {
+      const s = document.createElement("div"); s.className = "src";
+      s.textContent = "참고: " + [...new Set(out.sources.map(x => x.source.replace(/^가상_/, "")))].join(", ");
+      bubble.appendChild(s);
+    }
+    bubble.appendChild(actions(out.id));
+  } catch (e) {
+    bubble.textContent = e.status === 401 ? "팀 비밀번호가 바뀌었어요. 새로고침해서 다시 입장해 주세요." : e.message;
+    if (e.status === 401) localStorage.removeItem("butler-auth");
+  } finally { $("send").disabled = false; }
+}
+
+function actions(id) {
+  const box = document.createElement("div"); box.className = "acts";
+  const mk = (label, cls, fn) => { const b = document.createElement("button"); b.className = "act " + cls; b.textContent = label; b.onclick = () => fn(b); box.appendChild(b); return b; };
+  const fb = value => async b => {
+    await api("/api/feedback", {method: "POST", body: JSON.stringify({result_id: id, value})});
+    box.querySelectorAll(".fb").forEach(x => x.disabled = true); b.textContent += " ✓";
+  };
+  mk("좋아요", "fb", fb("up")); mk("별로예요", "fb", fb("down"));
+  mk("신고", "flag", async b => {
+    const reason = prompt("어떤 점이 이상했나요? (예: 2024년 숫자가 들어갔어요)");
+    if (reason === null) return;
+    await api("/api/report", {method: "POST", body: JSON.stringify({result_id: id, reason})});
+    b.textContent = "신고됨"; b.disabled = true;
+  });
+  return box;
+}
+
+$("enter").onclick = enter;
+$("pw").onkeydown = e => { if (e.key === "Enter") enter(); };
+$("send").onclick = send;
+$("ask").onkeydown = e => { if (e.key === "Enter" && !e.isComposing) send(); };
+if (auth) api("/api/sources").then(r => showMain(r.sources)).catch(() => { localStorage.removeItem("butler-auth"); auth = null; });
+</script>
+</body>
+</html>
