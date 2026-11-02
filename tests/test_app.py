@@ -67,3 +67,12 @@ def test_feedback_only_on_my_result(monkeypatch):
     assert client.post("/api/report", json={"result_id": rid, "reason": "2024 숫자"}, headers=ME).json() == {"ok": True}
     assert sent == [("user-feedback", 0, None), ("report", 1, "2024 숫자")]
     assert client.post("/api/feedback", json={"result_id": rid, "value": "up"}, headers=YOU).status_code == 404
+
+
+def test_korean_team_password(monkeypatch):
+    from app import main
+    monkeypatch.setattr(main.settings, "team_password", "한글집사123")
+    ok = {"X-Team-Password": quote("한글집사123"), "X-Nickname": quote("민수")}
+    assert client.get("/api/sources", headers=ok).status_code == 200
+    assert client.get("/api/sources", headers={**ok, "X-Team-Password": quote("한글집사12")}).status_code == 401
+    assert client.get("/api/sources").status_code == 401

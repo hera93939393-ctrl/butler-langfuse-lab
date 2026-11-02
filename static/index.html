@@ -88,7 +88,7 @@ let auth = JSON.parse(localStorage.getItem("butler-auth") || "null");
 let picked = new Set();
 
 async function api(path, opts = {}) {
-  const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-Team-Password": auth?.pw || "", "X-Nickname": encodeURIComponent(auth?.nick || ""), ...(opts.headers || {})}});
+  const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-Team-Password": encodeURIComponent(auth?.pw || ""), "X-Nickname": encodeURIComponent(auth?.nick || ""), ...(opts.headers || {})}});
   if (!r.ok) { const e = await r.json().catch(() => ({})); throw Object.assign(new Error(e.detail || "요청이 실패했어요."), {status: r.status}); }
   return r.json();
 }

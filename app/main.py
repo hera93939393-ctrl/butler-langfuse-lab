@@ -48,7 +48,9 @@ def get_llm():
 
 def member(x_team_password: str = Header(""), x_nickname: str = Header("")):
     """팀 비밀번호와 별명을 확인하고 별명을 돌려준다."""
-    if not settings.team_password or not hmac.compare_digest(x_team_password, settings.team_password):
+    # 한글 비밀번호도 되도록: 화면이 encodeURIComponent 로 보내고, 비교는 바이트로 한다(문자열 비교는 ASCII 만 됨)
+    given = unquote(x_team_password).encode("utf-8")
+    if not settings.team_password or not hmac.compare_digest(given, settings.team_password.encode("utf-8")):
         raise HTTPException(401, "팀 비밀번호가 맞지 않습니다.")
     # 헤더에는 한글을 그대로 못 넣어서 화면이 encodeURIComponent 로 보낸다
     nickname = re.sub(r"[^가-힣A-Za-z0-9_-]", "", unquote(x_nickname))[:20]
