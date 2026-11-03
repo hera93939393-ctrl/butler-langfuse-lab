@@ -16,11 +16,17 @@ ANSWER_RULES = """너는 공공기관 문서를 돕는 'AI 한글집사'다. [�
 자료에 없으면 '자료에서 찾지 못했습니다.'라고만 답한다. 숫자를 새로 계산하지 않는다."""
 
 
+USER_TEMPLATE = "[요청]\n{request}\n\n[자료]\n{sources}"  # Langfuse 프롬프트에서는 {{request}}, {{sources}}
+
+
+def list_sources(chunks):
+    return "\n".join(f"- [{steps.label(c['source'])} · {c['header']}] {c['line']}" for c in chunks) or "(찾은 자료 없음)"
+
+
 def compose(request_text, chunks, mode):
     """쓰기 단계에 보낼 (지시문, 사용자 메시지). 평가(scripts/eval_write.py)도 같은 것을 쓴다."""
     rules = ANSWER_RULES if mode == "question" else WRITE_RULES
-    listed = "\n".join(f"- [{steps.label(c['source'])} · {c['header']}] {c['line']}" for c in chunks) or "(찾은 자료 없음)"
-    return rules, f"[요청]\n{request_text}\n\n[자료]\n{listed}"
+    return rules, USER_TEMPLATE.format(request=request_text, sources=list_sources(chunks))
 
 
 def run(request_text, source_names, nickname, llm, settings):

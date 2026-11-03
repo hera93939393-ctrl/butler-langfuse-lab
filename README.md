@@ -51,7 +51,12 @@ copy .env.example .env   (값 채우기)
 | 파일 → Langfuse 데이터셋 | 무엇을 보나 | 채점 |
 |---|---|---|
 | `data/eval/find_sources.jsonl` → `butler-find` (9개) | 요청 읽기·자료 찾기: 연도, 모드, 골라야 할 줄 | 코드, 모델 호출 없음 |
-| `data/eval/write.jsonl` → `butler-write` (14개) | 자료를 고정하고 글쓰기만: 숫자, 숨은 지시, 기준 적용 | 코드 9 + LLM 심사 5 |
+| `data/eval/write.jsonl` → `butler-write-reply` (쓰기 6) · `butler-answer-reply` (물음 8) | 자료를 고정하고 글쓰기만: 숫자, 숨은 지시, 기준 적용 | 코드 9 + LLM 심사 5 |
+
+- 프롬프트: 서비스 지시문을 Langfuse 프롬프트 `butler-write`, `butler-answer` 로 올림(`scripts/push_prompts.py`). 화면 실험은 프롬프트 하나에 데이터셋 하나라 모드별로 데이터셋을 나눴습니다.
+- LLM 심사: `butler-reply-judge`(gpt-4o, Boolean). 지시문은 `docs/judge-prompt.md`, 규칙 `butler-reply-experiments` 가 두 데이터셋의 화면 실험에만 붙습니다.
+- 코드 채점 점수 `code-check`: 화면 실험 뒤 `scripts/score_run.py <실험 이름>` 으로 붙입니다.
+- `scripts/experiment.py` 는 같은 실험을 SDK 로 돌리지만, 지금 규칙으로는 SDK 실험에 LLM 심사가 붙지 않습니다(code-check 만).
 
 "작년·올해"는 오늘 날짜 기준으로 봅니다(2026-11-03 기준 올해=2026).
 
