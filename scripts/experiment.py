@@ -17,11 +17,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from langfuse.experiment import Evaluation  # noqa: E402
 
-from app import evals, tracing  # noqa: E402
+from app import evals, pipeline, tracing  # noqa: E402
 from app.config import ROOT, load_settings  # noqa: E402
 from app.llm import OpenAILLM, make_llm  # noqa: E402
 
-TEMPERATURE = 0.2  # 서비스(app/llm.py)와 같은 값
 JUDGE_MODEL = "gpt-4o"  # Langfuse 심사 butler-reply-judge 와 같은 모델
 
 if len(sys.argv) != 5:
@@ -54,13 +53,9 @@ def task(*, item, **kwargs):
                               today=item.input.get("today", ""))
     system = next(m["content"] for m in messages if m["role"] == "system")
     user = next(m["content"] for m in messages if m["role"] == "user")
-    step = langfuse.start_observation(name="write", as_type="generation", model=llm.model, prompt=prompt,
-                                      model_parameters={"temperature": TEMPERATURE}, input=messages)
-    usage, text = {}, None
-    try:
-        text = llm.complete(system, user, usage=usage)
-    finally:
-        step.update(output=text, usage_details=tracing.usage_details(usage)).end()
+    # 서비스와 같은 길(쓰기 → 수치 확인 → 다시 쓰기). 단계는 실험 항목 아래에 write, write-retry, number-guard 로 남는다
+    text, _, _ = pipeline.write_answer(llm, system, user, item.input["chunks"], item.input["request"],
+                                       tracing.Observation(langfuse, None), prompt)
     return text
 
 

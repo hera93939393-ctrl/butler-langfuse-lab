@@ -120,8 +120,9 @@ def score(trace_id, name, value, environment, comment=None):
     langfuse = client()
     if langfuse is None or not trace_id:
         return False
+    # 점수 사유(신고 사유)도 보내기 전에 전화번호·이메일·카드 번호 모양을 가린다(SDK 마스킹은 입력·출력에만 걸린다)
     langfuse.create_score(trace_id=trace_id, name=name, value=value, data_type="BOOLEAN",
-                          comment=comment or None, environment=environment)
+                          comment=mask(data=comment) if comment else None, environment=environment)
     return True
 
 

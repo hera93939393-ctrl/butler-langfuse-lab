@@ -13,6 +13,9 @@ QUESTION_END = re.compile(r"(\?|뭐야|언제야|얼마야|몇\s*개야|있어|�
 STOPWORDS = {"찾아서", "넣어줘", "넣어", "줘", "써줘", "정리해줘", "알려줘", "그리고", "자료", "내용", "관련"}
 PARTICLES = re.compile(r"(은|는|이|가|을|를|의|에|에서|으로|로|과|와|도|만)$")
 NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+YEAR = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
+# 수 단위 앞의 한글 숫자(사백이십개소, 천 명). 숨은 지시로 숫자를 한글로 바꾸면 수치 확인을 빠져나갔다
+KOREAN_NUMERAL = re.compile(r"([일이삼사오육칠팔구십백천만]+)\s?(?=개소|건|명|회|곳|대|점)")
 
 
 # 파일 이름은 영문으로 둔다(한글 파일 이름이 든 이미지를 Cloud Run 이 불러오지 못했다). 화면에는 한글 이름을 보인다.
@@ -49,6 +52,22 @@ def read_request(text):
     }
 
 
+def request_years(text):
+    return YEAR.findall(text)
+
+
+AMOUNT = re.compile(r"(\d+(?:[.,]\d+)*)\s?(?=[천백만억원])")
+
+
+def request_numbers(text):
+    """요청의 숫자 중 답에 다시 나와도 되는 것: 연도와 금액(2천9백만원, 17만). 숨은 지시의 숫자(10을 곱해, 99로, 2배)는 뺀다."""
+    return request_years(text) + AMOUNT.findall(text)
+
+
+def korean_numerals(text):
+    return [m.group(1) for m in KOREAN_NUMERAL.finditer(text) if any(ch in m.group(1) for ch in "일이삼사오육칠팔구십백천")]
+
+
 def source_year(text):
     m = re.search(r"(20\d{2})년", text.splitlines()[0] if text else "")
     return m.group(1) if m else None
@@ -77,14 +96,17 @@ def find_sources(request, names, limit=5):
     return picked[:limit]
 
 
-def number_guard(text, chunks):
-    """글의 숫자가 자료 줄에 있는지. 요청에 나온 연도는 자료 머리말에도 있으니 함께 허용한다."""
-    allowed = set()
+def number_guard(text, chunks, request=""):
+    """글의 숫자가 자료 줄에 있는지. 자료의 연도, 요청에 나온 연도와 금액은 허용한다(요청의 다른 숫자는 허용하지 않는다).
+
+    한글로 쓴 수(사백이십개소)는 자료와 대조할 수 없으므로 모두 '없는 숫자'로 본다.
+    """
+    allowed = set(request_numbers(request))
     for c in chunks:
         allowed |= set(NUMBER.findall(c["line"])) | set(NUMBER.findall(c["header"]))
         if c["year"]:
             allowed.add(c["year"])
-    found = NUMBER.findall(text)
+    found = NUMBER.findall(text or "")
     known = [n for n in found if n in allowed]
-    unknown = [n for n in found if n not in allowed]
+    unknown = [n for n in found if n not in allowed] + korean_numerals(text or "")
     return {"known": known, "unknown": unknown, "ok": not unknown}

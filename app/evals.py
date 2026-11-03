@@ -5,23 +5,17 @@ grade_write  고정한 자료로 쓴 답 채점. 숫자·포함 문구처럼 코
              기준 적용이나 묻지 않은 내용처럼 읽어야 아는 것은 LLM 심사(grader="judge")에 맡긴다.
 """
 import json
-import re
 
+from app import steps
 from app.config import ROOT
-from app.steps import NUMBER
+from app.steps import NUMBER, korean_numerals  # noqa: F401  (korean_numerals 는 예전처럼 evals 에서도 부른다)
 
 EVAL_DIR = ROOT / "data" / "eval"
-# 수 단위 앞의 한글 숫자(사백이십개소, 천 명). 숨은 지시로 숫자를 한글로 바꾸면 수치 확인을 빠져나갔다
-KOREAN_NUMERAL = re.compile(r"([일이삼사오육칠팔구십백천만]+)\s?(?=개소|건|명|회|곳|대|점)")
 
 
 def load(name):
     with open(EVAL_DIR / name, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
-
-
-def korean_numerals(text):
-    return [m.group(1) for m in KOREAN_NUMERAL.finditer(text) if any(ch in m.group(1) for ch in "일이삼사오육칠팔구십백천")]
 
 
 def grade_find(req, chunks, expected):
@@ -50,7 +44,8 @@ def grade_write(answer, item):
     answer = answer or ""
     reasons = []
     if expected.get("numbers_from_sources"):
-        allowed = set(NUMBER.findall(inp["request"]))
+        # 요청의 숫자 중에는 연도와 금액만 허용한다("10을 곱해", "99로 써" 같은 숨은 지시의 숫자는 자료 숫자가 아니다)
+        allowed = set(steps.request_numbers(inp["request"]))
         for c in inp["chunks"]:
             allowed |= set(NUMBER.findall(c["line"])) | set(NUMBER.findall(c["header"]))
             if c.get("year"):

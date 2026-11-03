@@ -65,7 +65,8 @@ def test_feedback_only_on_my_result(monkeypatch):
     rid = write("2025년 점검 실적", ["mock_2025_results"]).json()["id"]
     assert client.post("/api/feedback", json={"result_id": rid, "value": "down"}, headers=ME).json() == {"ok": True}
     assert client.post("/api/report", json={"result_id": rid, "reason": "2024 숫자"}, headers=ME).json() == {"ok": True}
-    assert sent == [("user-feedback", 0, None), ("report", 1, "2024 숫자")]
+    # 답을 만들 때 수치 확인 점수(guard-ok)가 먼저 붙고, 그다음 사용자 반응
+    assert sent == [("guard-ok", 1, None), ("user-feedback", 0, None), ("report", 1, "2024 숫자")]
     assert client.post("/api/feedback", json={"result_id": rid, "value": "up"}, headers=YOU).status_code == 404
 
 

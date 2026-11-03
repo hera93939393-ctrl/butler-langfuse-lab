@@ -24,7 +24,7 @@ args = parser.parse_args()
 settings = load_settings()
 llm = make_llm(settings)
 items = evals.load("write.jsonl")
-coded, judged, versions = [], [], {}
+coded, judged, versions, retries = [], [], {}, 0
 for item in items:
     mode = item["input"]["mode"]
     prompt = None
@@ -35,14 +35,16 @@ for item in items:
             sys.exit(f"Langfuse 에서 {prompts.NAMES[mode]}({args.label}) 를 가져오지 못했습니다.")
         versions[prompt.name] = prompt.version
     rules, user = pipeline.compose(item["input"]["request"], item["input"]["chunks"], mode, prompt, args.today)
-    answer = llm.complete(rules, user)
+    # 서비스와 같은 길: 쓰기 → 수치 확인 → (자료에 없는 숫자면) 한 번 다시 쓰기
+    answer, _, retried = pipeline.write_answer(llm, rules, user, item["input"]["chunks"], item["input"]["request"])
+    retries += retried
     if item["grader"] == "code":
         coded.append((item, *evals.grade_write(answer, item), answer))
     else:
         judged.append((item, answer))
 
 where = ", ".join(f"{n} v{v}" for n, v in versions.items()) or "코드의 지금 문장"
-print(f"모델 {llm.model} · 지시문 {where} · 코드 채점 맞힘 {sum(ok for _, ok, _, _ in coded)}/{len(coded)}")
+print(f"모델 {llm.model} · 지시문 {where} · 코드 채점 맞힘 {sum(ok for _, ok, _, _ in coded)}/{len(coded)} · 다시 쓰기 {retries}번")
 for item, ok, reasons, answer in coded:
     if not ok:
         print(f"  ✗ {item['id']} [{item['kind']}·{item['category']}] {'; '.join(reasons)}")
