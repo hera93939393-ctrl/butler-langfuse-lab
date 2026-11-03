@@ -16,6 +16,13 @@ ANSWER_RULES = """너는 공공기관 문서를 돕는 'AI 한글집사'다. [�
 자료에 없으면 '자료에서 찾지 못했습니다.'라고만 답한다. 숫자를 새로 계산하지 않는다."""
 
 
+def compose(request_text, chunks, mode):
+    """쓰기 단계에 보낼 (지시문, 사용자 메시지). 평가(scripts/eval_write.py)도 같은 것을 쓴다."""
+    rules = ANSWER_RULES if mode == "question" else WRITE_RULES
+    listed = "\n".join(f"- [{steps.label(c['source'])} · {c['header']}] {c['line']}" for c in chunks) or "(찾은 자료 없음)"
+    return rules, f"[요청]\n{request_text}\n\n[자료]\n{listed}"
+
+
 def run(request_text, source_names, nickname, llm, settings):
     turn = tracing.start_trace("write-turn", attrs=tracing.turn_attrs(nickname, settings, {"sources": ",".join(source_names)}),
                                input={"request": request_text, "sources": source_names})
@@ -31,9 +38,7 @@ def run(request_text, source_names, nickname, llm, settings):
                                metadata={"picked": len(chunks), "years_in_picked": sorted({c["year"] for c in chunks if c["year"]})}).end()
 
         # ③ 쓰기
-        rules = ANSWER_RULES if req["mode"] == "question" else WRITE_RULES
-        listed = "\n".join(f"- [{steps.label(c['source'])} · {c['header']}] {c['line']}" for c in chunks) or "(찾은 자료 없음)"
-        user = f"[요청]\n{request_text}\n\n[자료]\n{listed}"
+        rules, user = compose(request_text, chunks, req["mode"])
         step = turn.start_observation(name="write", as_type="generation", model=llm.model,
                                       input=[{"role": "system", "content": rules}, {"role": "user", "content": user}])
         usage, text = {}, None

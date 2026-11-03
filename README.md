@@ -45,5 +45,21 @@ copy .env.example .env   (값 채우기)
 .venv\Scripts\uvicorn app.main:app --port 8090
 ```
 
+## 평가 (데이터셋과 채점)
+오류 분석(`docs/error-analysis.md`)에서 찾은 실패를 같은 입력으로 다시 세려고 만든 데이터셋입니다.
+
+| 파일 → Langfuse 데이터셋 | 무엇을 보나 | 채점 |
+|---|---|---|
+| `data/eval/find_sources.jsonl` → `butler-find` (9개) | 요청 읽기·자료 찾기: 연도, 모드, 골라야 할 줄 | 코드, 모델 호출 없음 |
+| `data/eval/write.jsonl` → `butler-write` (14개) | 자료를 고정하고 글쓰기만: 숫자, 숨은 지시, 기준 적용 | 코드 9 + LLM 심사 5 |
+
+"작년·올해"는 오늘 날짜 기준으로 봅니다(2026-11-03 기준 올해=2026).
+
+```
+.venv\Scripts\python scripts/eval_find.py        (무료)
+.venv\Scripts\python scripts/eval_write.py       (실제 LLM 14번)
+.venv\Scripts\python scripts/upload_datasets.py  (다시 실행해도 항목이 늘지 않음)
+```
+
 ## 배포 (Cloud Run)
 비밀값(LLM 키, Langfuse 비밀키, 팀 비밀번호)은 Secret Manager에 두고 이름으로만 연결합니다. 최대 인스턴스 1개, 하루 요청 수 `DAILY_LIMIT`.
