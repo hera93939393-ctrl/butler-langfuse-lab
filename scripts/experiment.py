@@ -5,8 +5,9 @@
 LLM 심사는 Langfuse 규칙(butler-reply-experiments)이 SDK 실험에는 붙지 않아서, 같은 심사 지시문
 (docs/judge-prompt.md)과 같은 모델(gpt-4o)로 여기서 판정해 점수 judge-sdk 로 붙인다.
 
-    .venv\\Scripts\\python scripts/experiment.py <데이터셋> <프롬프트> <버전> <실험 이름>
+    .venv\\Scripts\\python scripts/experiment.py <데이터셋> <프롬프트> <버전> <실험 이름> [--prompt-only]
     예) scripts/experiment.py butler-write-reply butler-write 1 write-v1-2
+    --prompt-only: 수치 확인의 다시 쓰기(코드 가드레일)를 끄고 프롬프트만의 효과를 잰다
 """
 import json
 import re
@@ -23,9 +24,11 @@ from app.llm import OpenAILLM, make_llm  # noqa: E402
 
 JUDGE_MODEL = "gpt-4o"  # Langfuse 심사 butler-reply-judge 와 같은 모델
 
-if len(sys.argv) != 5:
+PROMPT_ONLY = "--prompt-only" in sys.argv
+args = [a for a in sys.argv[1:] if a != "--prompt-only"]
+if len(args) != 4:
     sys.exit(__doc__)
-dataset_name, prompt_name, version, run_name = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+dataset_name, prompt_name, version, run_name = args[0], args[1], int(args[2]), args[3]
 
 settings = load_settings()
 llm = make_llm(settings)
@@ -53,9 +56,12 @@ def task(*, item, **kwargs):
                               today=item.input.get("today", ""))
     system = next(m["content"] for m in messages if m["role"] == "system")
     user = next(m["content"] for m in messages if m["role"] == "user")
+    observation = tracing.Observation(langfuse, None)
+    if PROMPT_ONLY:
+        return pipeline._generate(observation, "write", llm, system, user, prompt)
     # 서비스와 같은 길(쓰기 → 수치 확인 → 다시 쓰기). 단계는 실험 항목 아래에 write, write-retry, number-guard 로 남는다
     text, _, _ = pipeline.write_answer(llm, system, user, item.input["chunks"], item.input["request"],
-                                       tracing.Observation(langfuse, None), prompt)
+                                       observation, prompt)
     return text
 
 
@@ -81,7 +87,8 @@ def judge(*, input, output, expected_output, **kwargs):
 
 result = langfuse.run_experiment(name=run_name, run_name=run_name, data=langfuse.get_dataset(dataset_name).items,
                                  task=task, evaluators=[code_check, judge], max_concurrency=4,
-                                 metadata={"prompt": f"{prompt_name} v{version}", "model": llm.model})
+                                 metadata={"prompt": f"{prompt_name} v{version}", "model": llm.model,
+                                           "guardrail": "off" if PROMPT_ONLY else "on"})
 langfuse.flush()
 for name in ("code-check", "judge-sdk"):
     got = [e for r in result.item_results for e in r.evaluations if e.name == name]
