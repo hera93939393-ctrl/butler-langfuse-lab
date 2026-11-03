@@ -56,7 +56,18 @@ copy .env.example .env   (값 채우기)
 - 프롬프트: 서비스 지시문을 Langfuse 프롬프트 `butler-write`, `butler-answer` 로 올림(`scripts/push_prompts.py`). 화면 실험은 프롬프트 하나에 데이터셋 하나라 모드별로 데이터셋을 나눴습니다.
 - LLM 심사: `butler-reply-judge`(gpt-4o, Boolean). 지시문은 `docs/judge-prompt.md`, 규칙 `butler-reply-experiments` 가 두 데이터셋의 화면 실험에만 붙습니다.
 - 코드 채점 점수 `code-check`: 화면 실험 뒤 `scripts/score_run.py <실험 이름>` 으로 붙입니다.
-- `scripts/experiment.py` 는 같은 실험을 SDK 로 돌리지만, 지금 규칙으로는 SDK 실험에 LLM 심사가 붙지 않습니다(code-check 만).
+- `scripts/experiment.py` 는 같은 실험을 SDK 로 돌립니다. Langfuse 규칙이 SDK 실험에는 붙지 않아, 같은 심사 지시문·모델로 점수 `judge-sdk` 를 직접 붙입니다.
+
+### 프롬프트 관리
+서비스는 쓰기 지시문을 Langfuse 에서 라벨로 가져옵니다(`app/prompts.py`). `ENV=production` 이면 `production`, 그 밖(lab, local)은 `staging`. 키가 없거나 Langfuse 에 닿지 못하면 코드의 문장(`app/pipeline.py`)으로 답하고, 트레이스의 `write` 단계에 쓴 프롬프트 이름과 버전이 남습니다.
+
+| 버전 | 내용 | 라벨 |
+|---|---|---|
+| 1 | 코드의 문장 그대로 | production |
+| 2 | 1과 같은 내용(실수로 만든 사본) | — |
+| 3 | `data/prompts/*.v2.txt`: 숨은 지시 무시, 합계 금지, 기준 적용, 요청 항목만, 오늘 기준 작년·올해 | staging |
+
+배포·롤백은 코드 배포 없이 라벨을 옮깁니다. 새 버전은 `scripts/push_prompts.py --file <파일> "<메모>"`(라벨 없이 올라감) → 실험으로 비교 → 라벨 이동.
 
 "작년·올해"는 오늘 날짜 기준으로 봅니다(2026-11-03 기준 올해=2026).
 

@@ -24,6 +24,7 @@ DESCRIPTIONS = {
     "butler-write-reply": "쓰기 요청: 자료를 고정하고 프롬프트 butler-write 로 답만 만든다. 코드 채점 + LLM 심사",
     "butler-answer-reply": "물음: 자료를 고정하고 프롬프트 butler-answer 로 답만 만든다. 코드 채점 + LLM 심사",
 }
+TODAY = "2026-11-03(화)"  # 프롬프트 변수 {{today}}. 작년·올해 판정 기준일(데이터셋 metadata today 와 같음)
 OLD = "butler-write"  # 두 모드를 한데 담았던 첫 데이터셋. 항목은 보관(ARCHIVED)으로 돌린다
 
 
@@ -32,7 +33,8 @@ def rows():
         yield "butler-find", item, item["input"], {"criterion": item["criterion"], **item["expected"]}
     for item in evals.load("write.jsonl"):
         name = "butler-answer-reply" if item["input"]["mode"] == "question" else "butler-write-reply"
-        inp = {"request": item["input"]["request"], "sources": pipeline.list_sources(item["input"]["chunks"]), **item["input"]}
+        inp = {"request": item["input"]["request"], "sources": pipeline.list_sources(item["input"]["chunks"]),
+               "today": TODAY, **item["input"]}
         yield name, item, inp, item["expected"]
 
 

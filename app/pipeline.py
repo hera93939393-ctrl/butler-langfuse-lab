@@ -2,7 +2,9 @@
 
 read-request(span) → find-sources(span) → write(generation) → number-guard(span)
 """
-from app import steps, tracing
+from datetime import datetime
+
+from app import prompts, steps, tracing
 
 WRITE_RULES = """너는 공공기관 문서를 쓰는 'AI 한글집사'다. [자료]에 있는 사실과 숫자만 써서 개조식으로 답한다.
 - 큰 항목은 □, 작은 항목은 앞에 한 칸 띄우고 ◦ 로 쓴다.
@@ -23,10 +25,24 @@ def list_sources(chunks):
     return "\n".join(f"- [{steps.label(c['source'])} · {c['header']}] {c['line']}" for c in chunks) or "(찾은 자료 없음)"
 
 
-def compose(request_text, chunks, mode):
-    """쓰기 단계에 보낼 (지시문, 사용자 메시지). 평가(scripts/eval_write.py)도 같은 것을 쓴다."""
+def today_text():
+    now = datetime.now(tracing.KST)
+    return f"{now:%Y-%m-%d}({'월화수목금토일'[now.weekday()]})"
+
+
+def compose(request_text, chunks, mode, prompt=None, today=None):
+    """쓰기 단계에 보낼 (지시문, 사용자 메시지). 평가(scripts/eval_write.py)도 같은 것을 쓴다.
+
+    prompt 는 Langfuse 프롬프트(app/prompts.py). 없으면 코드의 지금 문장을 쓴다.
+    today 는 {{today}} 변수를 쓰는 버전을 위해 넣는다(쓰지 않는 버전은 무시한다).
+    """
     rules = ANSWER_RULES if mode == "question" else WRITE_RULES
-    return rules, USER_TEMPLATE.format(request=request_text, sources=list_sources(chunks))
+    sources = list_sources(chunks)
+    if prompt is None:
+        return rules, USER_TEMPLATE.format(request=request_text, sources=sources)
+    messages = prompt.compile(request=request_text, sources=sources, today=today or today_text())
+    return (next(m["content"] for m in messages if m["role"] == "system"),
+            next(m["content"] for m in messages if m["role"] == "user"))
 
 
 def run(request_text, source_names, nickname, llm, settings):
@@ -44,8 +60,11 @@ def run(request_text, source_names, nickname, llm, settings):
                                metadata={"picked": len(chunks), "years_in_picked": sorted({c["year"] for c in chunks if c["year"]})}).end()
 
         # ③ 쓰기
-        rules, user = compose(request_text, chunks, req["mode"])
-        step = turn.start_observation(name="write", as_type="generation", model=llm.model,
+        rules = ANSWER_RULES if req["mode"] == "question" else WRITE_RULES
+        prompt = prompts.get(req["mode"], prompts.label_for(settings.env), rules, USER_TEMPLATE)
+        rules, user = compose(request_text, chunks, req["mode"], prompt)
+        linked = prompt if prompt is not None and not prompt.is_fallback else None  # 트레이스에서 버전이 보이게
+        step = turn.start_observation(name="write", as_type="generation", model=llm.model, prompt=linked,
                                       input=[{"role": "system", "content": rules}, {"role": "user", "content": user}])
         usage, text = {}, None
         try:
