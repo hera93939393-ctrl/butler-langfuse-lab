@@ -21,6 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 _NUM = re.compile(r"\d+(?:\.\d+)?")
 _YEAR = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
@@ -66,6 +67,19 @@ def years_labeled(answer, years):
     return why[:5]
 
 
+def remote(url, pw, nick, item):
+    """배포된 서비스의 /api/write 로 보낸다(팀 비밀번호는 머리글로만)."""
+    import urllib.parse
+    import urllib.request
+    req = urllib.request.Request(url.rstrip("/") + "/api/write", method="POST",
+                                 data=json.dumps({"request": item["request"], "sources": item["sources"]}).encode("utf-8"),
+                                 headers={"Content-Type": "application/json", "X-Team-Password": urllib.parse.quote(pw),
+                                          "X-Nickname": urllib.parse.quote(nick)})
+    with urllib.request.urlopen(req, timeout=90) as resp:
+        j = json.loads(resp.read().decode("utf-8"))
+    return {"text": j["text"], "mode": j["mode"], "retried": None, "trace_id": j.get("id")}
+
+
 def grade(answer, item):
     answer = answer or ""
     why = []
@@ -87,6 +101,7 @@ def main():
     ap.add_argument("--label", required=True)
     ap.add_argument("--repeat", type=int, default=2)
     ap.add_argument("--only", help="id 들(쉼표)")
+    ap.add_argument("--url", help="배포된 주소(태그)로 보내 서버 답으로 채점 — 로컬에서 안 나는 현상을 서버에서 잴 때")
     a = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     os.environ["ENV"] = "eval-replay"   # 프롬프트 라벨은 production 이 아니면 staging — 배포(ENV=lab)와 같다
@@ -100,7 +115,11 @@ def main():
     rows = []
     for rep in range(a.repeat):
         for it in items:
-            r = pipeline.run(it["request"], it["sources"], f"replay-{a.label}", model, settings)
+            if a.url:
+                import send_new_conversations as conv
+                r = remote(a.url, conv.team_password(), f"replay-{a.label}", it)
+            else:
+                r = pipeline.run(it["request"], it["sources"], f"replay-{a.label}", model, settings)
             ok, why = grade(r["text"], it)
             rows.append({"id": it["id"], "kind": it["kind"], "type": it["type"], "rep": rep, "ok": ok, "why": why,
                          "answer": r["text"], "mode": r["mode"], "retried": r.get("retried"), "trace_id": r.get("trace_id")})
