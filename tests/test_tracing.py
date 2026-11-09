@@ -60,3 +60,26 @@ def test_write_turn_steps_and_attributes(monkeypatch):
 def test_mask_hides_phone_and_email():
     masked = tracing.mask(data={"x": "연락 010-1234-5678, a.b@example.com"})["x"]
     assert "[전화번호]" in masked and "[이메일]" in masked
+
+
+def test_write_and_feedback_flush_traces(monkeypatch):
+    """2026-11-09 운영: 답 10개 중 트레이스 5개가 Langfuse 에 안 들어옴(반응 점수는 들어옴).
+    Cloud Run 은 요청 밖에서 CPU 를 거의 멈춰 모아 둔 기록이 인스턴스에 남는다 → 요청 끝에 바로 보낸다."""
+    from fastapi.testclient import TestClient
+    from app import main
+
+    flushed = []
+    monkeypatch.setattr(tracing, "flush", lambda: flushed.append(1))
+    c = TestClient(main.app)
+    h = {"x-team-password": "test-pw", "x-nickname": "%EB%AF%BC%EC%88%98"}
+    monkeypatch.setattr(main.settings, "team_password", h["x-team-password"])
+    r = c.post("/api/write", json={"request": "2025년 점검 실적 찾아서 넣어줘", "sources": ["mock_2025_results"]}, headers=h)
+    assert r.status_code == 200 and flushed == [1], (r.status_code, r.text[:200], flushed)
+    c.post("/api/feedback", json={"result_id": r.json()["id"], "value": "up"}, headers=h)
+    assert flushed == [1, 1]
+
+
+def test_flush_without_langfuse_is_noop(monkeypatch):
+    monkeypatch.setattr(tracing, "_client", None)
+    monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
+    tracing.flush()   # 키가 없으면 아무 일도 안 하고 예외도 없다

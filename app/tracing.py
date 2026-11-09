@@ -6,6 +6,7 @@
 - 이 저장소는 목업 자료만 쓰므로 원문을 남긴다. 그래도 전화번호, 이메일, 카드 번호 모양은 가린다.
 SDK 근거: https://langfuse.com/docs/observability/sdk/python/instrumentation , langfuse==5.0.4
 """
+import json
 import os
 import re
 from contextlib import nullcontext
@@ -48,6 +49,19 @@ class _Off:
 
 OFF = _Off()
 _client = None
+
+
+def flush():
+    """모아 둔 기록을 지금 보낸다(2026-11-09 운영: 답 10개 중 트레이스 5개가 안 들어옴 — Cloud Run 은 요청 밖에서
+    CPU 를 거의 멈춰 SDK 의 묶음 전송이 인스턴스에 남는다). 키가 없으면 아무 일도 안 한다. 실패해도 답은 막지 않는다."""
+    c = client()
+    if c is None:
+        return
+    try:
+        c.flush()
+    except Exception as error:  # noqa: BLE001
+        print(json.dumps({"severity": "WARNING", "message": "Langfuse 기록 보내기 실패", "error": type(error).__name__},
+                         ensure_ascii=False), flush=True)
 
 
 def client():

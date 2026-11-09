@@ -126,6 +126,7 @@ def write(req: WriteRequest, nickname: str = Depends(member), model=Depends(get_
         while len(results) > 1000:
             results.popitem(last=False)
     log("INFO", "참고 작성", user=nickname, mode=out["mode"], chunks=len(out["chunks"]), guard_ok=out["guard"]["ok"])
+    tracing.flush()   # 요청이 끝나면 바로 보낸다(Cloud Run 은 요청 밖에서 CPU 를 거의 멈춤 — 2026-11-09 트레이스 절반 누락)
     return {"id": result_id, "text": out["text"], "mode": out["mode"], "guard": out["guard"],
             "sources": [{"source": steps.label(c["source"]), "header": c["header"]} for c in out["chunks"]]}
 
@@ -150,6 +151,7 @@ def send_score(trace_id, name, value, comment=None):
 def feedback(req: FeedbackRequest, nickname: str = Depends(member)):
     sent = send_score(my_result(nickname, req.result_id), "user-feedback", 1 if req.value == "up" else 0)
     log("INFO", "답변 반응", user=nickname, value=req.value, scored=sent)
+    tracing.flush()
     return {"ok": True}
 
 
@@ -157,4 +159,5 @@ def feedback(req: FeedbackRequest, nickname: str = Depends(member)):
 def report(req: ReportRequest, nickname: str = Depends(member)):
     sent = send_score(my_result(nickname, req.result_id), "report", 1, req.reason)
     log("WARNING", "답변 신고", user=nickname, reason_length=len(req.reason), scored=sent)
+    tracing.flush()
     return {"ok": True}
