@@ -18,6 +18,7 @@ PARTICLES = re.compile(r"(에게서|에게|한테|께서|이랑|랑|하고|까�
 # 조사를 뗀 뒤 남는 어미(보고해야→보고, 보고하(는)→보고, 발생되면→발생). 2026-11-09 운영 기록: "누구에게 보고해야 하지?"가
 # '누구에게·보고해야·하지'로 읽혀 자료의 '보고'와 하나도 안 맞아 "찾지 못함"(트레이스 20)
 ENDINGS = re.compile(r"(해야|하는|하면|해서|하지|해줘|되면|이면|라면|하|한)$")
+LIMIT_WORD = re.compile(r"이내|이하|초과|미만|이상|최대|최소")
 NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 YEAR = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
 # 수 단위 앞의 한글 숫자(사백이십개소, 천 명). 숨은 지시로 숫자를 한글로 바꾸면 수치 확인을 빠져나갔다
@@ -84,6 +85,10 @@ def source_year(text):
 def find_sources(request, names, limit=5):
     """고른 자료에서 요청과 겹치는 줄을 점수 순으로. 줄마다 바로 위 □ 머리줄을 함께 붙인다."""
     picked = []
+    # 조건 물음(물음 + 연도 아닌 숫자 "22명", "17만"): 값을 기준과 견주는 질문이라 기준 줄(이내·이하·초과·최대…)을 1점 위로.
+    # 2026-11-09 4차: "안전교실에 22명 받아도 되나요?" — '안전교실' 1점 동점 줄 6개에 밀려 "최대 20명" 줄이 5줄 밖으로 잘림
+    numeric_question = request["mode"] == "question" and any(
+        re.match(r"\d", w) and not re.match(r"20\d{2}", w) for w in request["words"])
     for name in names:
         text = read_source(name)
         year = source_year(text)
@@ -98,6 +103,8 @@ def find_sources(request, names, limit=5):
             score = sum(1 for w in request["words"] if w in body)
             if request["years"] and year in request["years"]:
                 score += 1  # 연도가 맞으면 조금 더 위로(다른 해 자료도 낱말만 같으면 함께 뽑힌다)
+            if score > 0 and numeric_question and LIMIT_WORD.search(line):
+                score += 1
             if score > 0:
                 picked.append({"source": name, "year": year, "header": header, "line": line.strip(), "score": score})
     picked.sort(key=lambda c: -c["score"])
