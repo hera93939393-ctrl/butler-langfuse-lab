@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .tmp/
+
+# 실험 결과(답 원문) — 대화 내용 파일은 올리지 않는다(과제 제출 규칙)
+data/eval/results/
