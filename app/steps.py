@@ -9,7 +9,10 @@ import re
 
 from app.config import MOCK_DIR
 
-QUESTION_END = re.compile(r"(\?|뭐야|언제야|얼마야|몇\s*개야|있어|했어|인가요|나요|까)\s*$")
+QUESTION_END = re.compile(r"(\?|뭐야|언제야|얼마야|몇\s*개야|있어|했어|인가요|나요|까|[이라하되다]?면|누구|얼마까지야?)\s*$")
+# 물음 낱말(누가·얼마·몇·언제·어디)이 있으면 끝이 '~해'여도 물음 — 2026-11-09 3차 ②: "예산이 4백만원이면 누가 결재해",
+# "그럼 예산이 2천9백만원이면"(트레이스 29, 신고)이 쓰기로 판정돼 쓰기 지시문이 "□ 자료에서 찾지 못함"을 냈다
+QUESTION_WORD = re.compile(r"(누가|누구|얼마|몇\s*(?:곳|개|명|번|회|건|점|일)|언제|어디)")
 STOPWORDS = {"찾아서", "넣어줘", "넣어", "줘", "써줘", "정리해줘", "알려줘", "그리고", "자료", "내용", "관련"}
 PARTICLES = re.compile(r"(에게서|에게|한테|께서|이랑|랑|하고|까지|부터|에서|으로|은|는|이|가|을|를|의|에|로|과|와|도|만)$")
 # 조사를 뗀 뒤 남는 어미(보고해야→보고, 보고하(는)→보고, 발생되면→발생). 2026-11-09 운영 기록: "누구에게 보고해야 하지?"가
@@ -50,7 +53,7 @@ def read_request(text):
         if len(w) >= 2 and w not in STOPWORDS and not w.isdigit():
             words.append(w)
     return {
-        "mode": "question" if QUESTION_END.search(text.strip()) else "write",
+        "mode": "question" if QUESTION_END.search(text.strip()) or QUESTION_WORD.search(text) else "write",
         "years": re.findall(r"(20\d{2})년?", text),
         "words": words,
         "decided_by": "rule",
