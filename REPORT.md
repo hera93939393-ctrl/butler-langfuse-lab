@@ -89,7 +89,7 @@ AI 한글집사 실습 서비스(**butler-lab**: FastAPI + Cloud Run + Langfuse,
 - ②: 기준적용 **80% 이상** + 두 번 모두 통과 항목 **4개 이상**
 
 ## 5. 바꾼 것과 전후 비교
-PR: [#1 준비(기준·데이터셋·채점기)](https://github.com/hera93939393-ctrl/butler-langfuse-lab/pull/1) → [#2 1차 ①](https://github.com/hera93939393-ctrl/butler-langfuse-lab/pull/2) → [#3 3차 ②](https://github.com/hera93939393-ctrl/butler-langfuse-lab/pull/3). 한 PR 에 한 가지만 바꿨다.
+PR: [#1 준비(기준·데이터셋·채점기)](https://github.com/hera93939393-ctrl/butler-langfuse-lab/pull/1) → [#5 1차 ①](https://github.com/hera93939393-ctrl/butler-langfuse-lab/pull/5) → [#6 3차 ②](https://github.com/hera93939393-ctrl/butler-langfuse-lab/pull/6) → [#7 REPORT](https://github.com/hera93939393-ctrl/butler-langfuse-lab/pull/7). 한 PR 에 한 가지만 바꿨다. (처음엔 #2·#3·#4 로 PR 을 앞 PR 브랜치 위에 쌓았는데, #1 머지 때 브랜치를 지우며 #2·#4 가 닫히고 #3 은 main 이 아닌 1차 브랜치로 머지됐다 → 같은 커밋으로 main 대상 #5·#6·#7 을 다시 열었다.)
 
 ### 5-1. 1차 ① 자료 못 고름 — `app/steps.py` 자료 찾기 규칙
 - 요청 연도가 둘 이상이면 연도마다 위에서 5줄씩 고른다(같은 점수면 자료 순서라 두 해의 같은 항목이 짝지어짐)
@@ -123,8 +123,8 @@ PR: [#1 준비(기준·데이터셋·채점기)](https://github.com/hera93939393
 | 태그 | 리비전 | 코드 |
 |---|---|---|
 | `v0-before` | butler-lab-00011-qap | PR #1 (고치기 전 + flush) |
-| `v1-find` | butler-lab-00012-dis | PR #2 (①) |
-| `v3-question` | butler-lab-00013-ver | PR #3 (①+②) |
+| `v1-find` | butler-lab-00012-dis | PR #5 (①) |
+| `v3-question` | butler-lab-00013-ver | PR #6 (①+②) |
 
 ### 6-2. 새 대화를 version 으로 나눠 비교
 데이터셋에 없는 새 대화 20개를 세 버전에 똑같이 보내고, Langfuse 트레이스를 `version`(리비전)으로 나눠 같은 현상 횟수·지연·비용을 셌다.
