@@ -8,22 +8,69 @@
 - 채점은 코드: must_include 전부, must_any 하나 이상, must_not_include 하나도 없음
 - 실제 LLM 을 부른다(gpt-4o-mini, 항목 24 × 반복 수 ≈ 50번, 몇 원). 프롬프트는 배포와 같은 라벨(ENV=lab → staging)
 - 트레이스 environment 는 'eval-replay' 라 사용자 기록과 섞이지 않는다
-- 결과: data/eval/results/replay_<label>.json (답 원문 포함 — 목업 자료라 남겨도 됨)
+- 결과: data/eval/results/replay_<label>.json (답 원문 포함 — .gitignore, 저장소에 올리지 않음)
+- 항목에 "years_labeled": ["2024","2025"] 가 있으면 연도 표시도 본다(years_labeled 함수)
 """
 import argparse
 import collections
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+_NUM = re.compile(r"\d+(?:\.\d+)?")
+_YEAR = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
+
+
+def _year_numbers():
+    """목업 연도 자료의 숫자 → 그 숫자가 나오는 해들. 한 해에만 나오는 숫자로 연도 표시를 가린다."""
+    out = collections.defaultdict(set)
+    for y in ("2024", "2025"):
+        for line in (ROOT / "mock_data" / f"mock_{y}_results.txt").read_text(encoding="utf-8").splitlines()[1:]:
+            for n in _NUM.findall(line):
+                out[n].add(y)
+    return out
+
+
+def years_labeled(answer, years):
+    """두 해 답에서 숫자마다 '어느 해 숫자인지' 보이는가 → 걸린 까닭들(빈 목록이면 통과).
+    숫자의 해 = 같은 줄에 적힌 연도, 없으면 바로 위 □ 제목줄의 연도. 한 해 자료에만 있는 숫자가
+    다른 해 아래 있거나 연도 없이 있으면 실패(2026-11-09 새 대화 4/4: '□ 2024년 …' 아래 2025 줄이 연도 없이 이어짐)."""
+    owner = _year_numbers()
+    why, head_year, seen = [], None, set()
+    for raw in (answer or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        in_line = [y for y in _YEAR.findall(line) if y in years]
+        if line.startswith("□"):
+            head_year = in_line[0] if len(in_line) == 1 else None
+        here = in_line[0] if len(in_line) == 1 else head_year
+        for n in _NUM.findall(_YEAR.sub("", line)):
+            ys = owner.get(n, set())
+            if len(ys) != 1:
+                continue           # 두 해 모두 있거나 자료에 없는 숫자는 판정 안 함
+            y = next(iter(ys))
+            seen.add(y)
+            if len(in_line) >= 2:
+                continue           # 한 줄에 두 해를 나란히 적은 꼴("2024년 9곳, 2025년 12곳")은 통과
+            if here != y:
+                why.append(f"{y}년 숫자 {n}이 {'연도 없이' if here is None else here + '년 아래'} 있음")
+    for y in years:
+        if y not in seen:
+            why.append(f"{y}년 숫자가 답에 없음")
+    return why[:5]
+
 
 def grade(answer, item):
     answer = answer or ""
     why = []
+    if item.get("years_labeled"):
+        why += years_labeled(answer, item["years_labeled"])
     for w in item.get("must_include", []):
         if w not in answer:
             why.append(f"'{w}' 없음")
