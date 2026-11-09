@@ -5,7 +5,7 @@
 
 - Langfuse 공개 API v2 observations(트레이스 단위로 묶음)에서 user 가 'new-' 로 시작하는 write-turn 만
 - 판정은 send_new_conversations.EXPECT 의 조건으로 코드 채점(replay_logs.grade) — 답 원문은 파일에 남기지 않는다
-- 지연: write-turn latency(초), 비용: 그 트레이스의 모든 관찰 totalPrice 합(USD)
+- 지연: write-turn latency(초), 비용: 그 트레이스의 모든 관찰 totalCost 합(USD)
 """
 import argparse
 import collections
@@ -67,6 +67,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--since", default="2026-11-09T00:00:00Z")
     ap.add_argument("--md")
+    ap.add_argument("--prefix", default="slow-", help="새 대화 별명 앞부분(slow- = 12초 간격으로 보낸 판)")
     a = ap.parse_args()
     obs = fetch(a.since)
     by_trace = collections.defaultdict(list)
@@ -77,7 +78,7 @@ def main():
                                              "fails": []})
     for t, os_ in by_trace.items():
         turn = next((o for o in os_ if o["name"] == "write-turn"), None)
-        if not turn or not str(turn.get("userId") or "").startswith("new-"):
+        if not turn or not str(turn.get("userId") or "").startswith(a.prefix):
             continue
         req = text_of(turn.get("input"))
         if req not in kind_of:
@@ -93,7 +94,7 @@ def main():
             s["fails"].append(f"[{KIND_NAME[k]}] {req} — {'; '.join(why)}")
         if turn.get("latency") is not None:
             s["lat"].append(float(turn["latency"]))
-        s["cost"].append(sum(float(o.get("totalPrice") or 0) for o in os_))
+        s["cost"].append(sum(float(o.get("totalCost") or 0) for o in os_))
     lines = ["| 버전(리비전) | 새 대화 | " + " | ".join(f"{v} 실패" for v in KIND_NAME.values()) + " | 지연 중앙값(초) | 지연 최대(초) | 비용 합(USD) |",
              "|---|---|" + "---|" * len(KIND_NAME) + "---|---|---|"]
     for ver in sorted(stats):
