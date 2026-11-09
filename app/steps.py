@@ -11,7 +11,10 @@ from app.config import MOCK_DIR
 
 QUESTION_END = re.compile(r"(\?|뭐야|언제야|얼마야|몇\s*개야|있어|했어|인가요|나요|까)\s*$")
 STOPWORDS = {"찾아서", "넣어줘", "넣어", "줘", "써줘", "정리해줘", "알려줘", "그리고", "자료", "내용", "관련"}
-PARTICLES = re.compile(r"(은|는|이|가|을|를|의|에|에서|으로|로|과|와|도|만)$")
+PARTICLES = re.compile(r"(에게서|에게|한테|께서|이랑|랑|하고|까지|부터|에서|으로|은|는|이|가|을|를|의|에|로|과|와|도|만)$")
+# 조사를 뗀 뒤 남는 어미(보고해야→보고, 보고하(는)→보고, 발생되면→발생). 2026-11-09 운영 기록: "누구에게 보고해야 하지?"가
+# '누구에게·보고해야·하지'로 읽혀 자료의 '보고'와 하나도 안 맞아 "찾지 못함"(트레이스 20)
+ENDINGS = re.compile(r"(해야|하는|하면|해서|하지|해줘|되면|이면|라면|하|한)$")
 NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 YEAR = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
 # 수 단위 앞의 한글 숫자(사백이십개소, 천 명). 숨은 지시로 숫자를 한글로 바꾸면 수치 확인을 빠져나갔다
@@ -42,6 +45,8 @@ def read_request(text):
     words = []
     for w in re.findall(r"[가-힣A-Za-z0-9]+", text):
         w = PARTICLES.sub("", w)
+        if len(ENDINGS.sub("", w)) >= 2:
+            w = ENDINGS.sub("", w)
         if len(w) >= 2 and w not in STOPWORDS and not w.isdigit():
             words.append(w)
     return {
@@ -93,6 +98,15 @@ def find_sources(request, names, limit=5):
             if score > 0:
                 picked.append({"source": name, "year": year, "header": header, "line": line.strip(), "score": score})
     picked.sort(key=lambda c: -c["score"])
+    years = list(dict.fromkeys(request["years"]))
+    if len(years) >= 2:
+        # 두 해 이상 비교(2026-11-09 운영 기록, 트레이스 25 신고): 한 해 줄이 위 5자리를 다 차지해 다른 해가 잘렸다.
+        # 연도마다 limit 줄씩, 연도 없는 줄(규정 등)도 limit 줄까지 — 같은 점수면 자료 순서대로라 두 해의 같은 항목이 짝지어진다
+        out = []
+        for y in years:
+            out += [c for c in picked if c["year"] == y][:limit]
+        out += [c for c in picked if c["year"] not in years][:limit]
+        return sorted(out, key=lambda c: -c["score"])
     return picked[:limit]
 
 
