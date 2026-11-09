@@ -81,12 +81,12 @@ def team_password():
     return pw
 
 
-def send(base, version, pw, who, text, sources):
+def send(base, version, pw, who, text, sources, prefix="new"):
     req = urllib.request.Request(
         base.rstrip("/") + "/api/write", method="POST",
         data=json.dumps({"request": text, "sources": sources}).encode("utf-8"),
         headers={"Content-Type": "application/json", "X-Team-Password": urllib.parse.quote(pw),
-                 "X-Nickname": urllib.parse.quote(f"new-{version}-{who}")})
+                 "X-Nickname": urllib.parse.quote(f"{prefix}-{version}-{who}")})
     t = time.monotonic()
     with urllib.request.urlopen(req, timeout=90) as r:
         r.read()
@@ -95,19 +95,20 @@ def send(base, version, pw, who, text, sources):
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4):
         sys.exit(__doc__)
     base, version = sys.argv[1], sys.argv[2]
+    gap = float(sys.argv[3]) if len(sys.argv) == 4 else 1.0   # 2026-11-09: 1초 간격이면 트레이스가 약 11초에 하나만 남아 12초로
     pw = team_password()
     ok = 0
     for who, text, sources, kind in CONVERSATIONS:
         try:
-            status, sec = send(base, version, pw, who, text, sources)
+            status, sec = send(base, version, pw, who, text, sources, "new" if gap <= 1 else "slow")
             ok += status == 200
             print(f"{status} {sec:4.1f}s [{kind}] {who}: {text}", flush=True)
         except Exception as e:  # noqa: BLE001
-            print(f"실패 [{kind}] {who}: {text} — {type(e).__name__}", flush=True)
-        time.sleep(1)
+            print(f"실패 [{kind}] {who}: {text} — {type(e).__name__}: {str(e)[:80]}", flush=True)
+        time.sleep(gap)
     print(f"끝: {ok}/{len(CONVERSATIONS)}")
 
 
